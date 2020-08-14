@@ -13,11 +13,15 @@ from googlesearch import search
 
 
 def get_whois_record(domain_name: str) -> dict:
-    print(f"Getting whois record for {domain_name}")
+    """
+
+    :param domain_name: the name of the domain about which we're getting whois info
+    :return: the collected whois record containing info on 4 parameters: "domain-name",
+    "registrar-name", "owner-name" and "abuse-email"
+    """
 
     try:
         whois_record = whois.whois(domain_name)
-        print(f"Whois record for {domain_name} has been successfully collected.")
 
         return {"domain-name": domain_name,
                 "registrar-name": whois_record["registrar"],
@@ -29,7 +33,11 @@ def get_whois_record(domain_name: str) -> dict:
 
 
 def check_if_alive(domain_name: str) -> bool:
-    print(f"Checking if alive for {domain_name}.")
+    """
+
+    :param domain_name: the name of the domain to which we are sending request
+    :return: whether the domain is alive (responding) or not
+    """
 
     full_domains = ["https://" + domain_name, "http://" + domain_name]
 
@@ -50,6 +58,11 @@ def check_if_alive(domain_name: str) -> bool:
 
 
 def get_abuse_email(registrar_name: str) -> str:
+    """
+
+    :param registrar_name: the name of the registrar whose abuse e-mail we are looking for
+    :return: abuse email of the registrar
+    """
     links_to_contact_page = search(registrar_name + " abuse email",
                                    tld="co.in", num=10, stop=10, pause=2)
 
@@ -73,6 +86,12 @@ def get_abuse_email(registrar_name: str) -> str:
 
 
 def collect_and_format_domain_data(domain_name: str) -> dict:
+    """
+
+    :param domain_name: the name of the domain about which we are collecting info
+    :return: the collected record containing the following info about the domain:
+    "domain-name", "registrar-name", "abuse-email", "owner-name", "is-alive"
+    """
     whois_record = get_whois_record(domain_name)
 
     # Getting rid of hardly intelligible domain ids such as

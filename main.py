@@ -5,6 +5,8 @@ import sys
 
 import psycopg2
 
+from progress.bar import Bar
+
 from domain_data_receiver import collect_and_format_domain_data
 from domains_generator import generate_domains_list
 
@@ -65,8 +67,6 @@ def save_whois_record(whois_record: dict) -> None:
 
         cursor.close()
         connection.commit()
-        print(f"Whois record for {whois_record['domain-name']} has "
-              "been successfully saved.\n")
 
     except (Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL:", error)
@@ -127,10 +127,15 @@ def upload_whois_records():
 
 def update_whois_records_in_db():
     domains_list = get_domains_list()
+    bar = Bar("Processing", max=len(domains_list))
 
     for domain_name in domains_list:
         domain_data = collect_and_format_domain_data(domain_name)
         save_whois_record(domain_data)
+        bar.next()
+
+    bar.finish()
+
 
 
 def main(instruction="update"):
