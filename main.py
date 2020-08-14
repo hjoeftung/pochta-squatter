@@ -1,8 +1,10 @@
 #! usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import psycopg2
 import re
+import sys
+
+import psycopg2
 import requests
 import whois
 
@@ -257,4 +259,8 @@ if __name__ == "__main__":
         host="localhost",
         database="pochta_domains")
 
-    main()
+    try:
+        main(sys.argv[1])
+
+    except IndexError:
+        main()
