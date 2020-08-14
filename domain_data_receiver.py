@@ -88,31 +88,41 @@ def get_abuse_email(registrar_name: str) -> str:
 def collect_and_format_domain_data(domain_name: str) -> dict:
     """
 
-    :param domain_name: the name of the domain about which we are collecting info
-    :return: the collected record containing the following info about the domain:
-    "domain-name", "registrar-name", "abuse-email", "owner-name", "is-alive"
+    :param domain_name: the name of the domain about which we are
+    collecting info
+    :return: the collected record containing the following info
+    about the domain: "domain-name", "registrar-name", "abuse-email",
+    "owner-name", "is-alive"
     """
     whois_record = get_whois_record(domain_name)
+    if not isinstance(whois_record, None):
 
-    # Getting rid of hardly intelligible domain ids such as
-    # 'XN--80A1ACNY.XN--P1AI' for .рф domain zone
-    whois_record["domain-name"] = domain_name
+        # Getting rid of hardly intelligible domain ids such as
+        # 'XN--80A1ACNY.XN--P1AI' for .рф domain zone
+        whois_record["domain-name"] = domain_name
 
-    is_alive = check_if_alive(domain_name)
-    whois_record["is-alive"] = is_alive
+        is_alive = check_if_alive(domain_name)
+        whois_record["is-alive"] = is_alive
 
-    # In case no email is provided in the whois.whois response
-    # we google for it
-    if not whois_record["abuse-email"]:
-        whois_record["abuse-email"] = get_abuse_email(
-            whois_record["registrar-name"])
+        # In case no email is provided in the whois.whois response
+        # we google for it
+        if not whois_record["abuse-email"]:
+            whois_record["abuse-email"] = get_abuse_email(
+                whois_record["registrar-name"])
 
-    # We need varchar in 'abuse_email' column in our database. So if we
-    # get several emails in whois.whois response we pick only one
-    if isinstance(whois_record["abuse-email"], list):
-        whois_record["abuse-email"] = whois_record["abuse-email"][0]
+        # We need varchar in 'abuse_email' column in our database. So if we
+        # get several emails in whois.whois response we pick only one
+        if isinstance(whois_record["abuse-email"], list):
+            whois_record["abuse-email"] = whois_record["abuse-email"][0]
 
-    return whois_record
+        return whois_record
+
+    else:
+        return {"domain-name": None,
+                "registrar-name": None,
+                "abuse-email": None,
+                "owner-name": None,
+                "is-alive": False}
 
 
 if __name__ == "__main__":

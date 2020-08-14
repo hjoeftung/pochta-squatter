@@ -5,7 +5,7 @@ import sys
 
 import psycopg2
 
-from progress.bar import Bar
+from progress.bar import ChargingBar
 
 from domain_data_receiver import collect_and_format_domain_data
 from domains_generator import generate_domains_list
@@ -116,6 +116,7 @@ def check_if_domain_in_db(domain_name) -> bool:
 def upload_whois_records():
     domains_list = generate_domains_list()
     create_db_table()
+    bar = ChargingBar("Processing", max=len(domains_list))
 
     for domain_name in domains_list:
         if check_if_domain_in_db(domain_name):
@@ -123,11 +124,14 @@ def upload_whois_records():
         else:
             domain_data = collect_and_format_domain_data(domain_name)
             save_whois_record(domain_data)
+            bar.next()
+
+    bar.finish()
 
 
 def update_whois_records_in_db():
     domains_list = get_domains_list()
-    bar = Bar("Processing", max=len(domains_list))
+    bar = ChargingBar("Processing", max=len(domains_list))
 
     for domain_name in domains_list:
         domain_data = collect_and_format_domain_data(domain_name)
@@ -135,7 +139,6 @@ def update_whois_records_in_db():
         bar.next()
 
     bar.finish()
-
 
 
 def main(instruction="update"):
