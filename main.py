@@ -56,13 +56,13 @@ def save_whois_record(whois_record: dict) -> None:
                    '{whois_record["domain-name"]}',
                    '{whois_record["registrar-name"]
                         if whois_record["registrar-name"]
-                        else 'NULL'}',
+                        else None}',
                    '{whois_record["owner-name"]
                         if whois_record["owner-name"]
-                        else 'NULL'}',
+                        else None}',
                    '{whois_record["abuse-email"]
                         if whois_record['abuse-email']
-                        else "NULL"}',
+                        else None}',
                    {whois_record['is-alive']})
 
                ON CONFLICT (domain_name) DO UPDATE SET 
@@ -144,7 +144,7 @@ def count_rows() -> int:
         print("Error while connecting to PostgreSQL:", error)
 
 
-def upload_whois_records():
+def upload_whois_records() -> None:
     domains_list = generate_final_domains_list()
     create_db_table()
     bar = ChargingBar("Uploading data", max=len(domains_list) - count_rows())
@@ -162,7 +162,7 @@ def upload_whois_records():
     bar.finish()
 
 
-def update_whois_records_in_db():
+def update_whois_records_in_db() -> None:
     domains_list = get_domains_list()
     bar = ChargingBar("Updating database", max=len(domains_list))
 
@@ -175,7 +175,8 @@ def update_whois_records_in_db():
 
     print("Database has been successfully updated")
 
-def export_to_csv():
+
+def export_to_csv() -> None:
     try:
         with open("squat_domains.csv", "w"):
             cursor = connection.cursor()

@@ -108,7 +108,7 @@ def collect_and_format_domain_data(domain_name: str) -> dict:
 
         for key in whois_record.keys():
             if isinstance(whois_record[key], list):
-                whois_record[key] = ", ".join(whois_record[key])
+                whois_record[key] = whois_record[key][0]
 
         return whois_record
 
