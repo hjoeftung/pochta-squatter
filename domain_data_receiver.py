@@ -15,7 +15,7 @@ from googlesearch import search
 def get_whois_record(domain_name: str) -> dict:
     """
 
-    :param domain_name: the name of the domain about which we're getting whois info
+    :param domain_name: the name of the domain on which we're getting whois info
     :return: the collected whois record containing info on 4 parameters: "domain-name",
     "registrar-name", "owner-name" and "abuse-email"
     """
@@ -63,7 +63,8 @@ def check_if_alive(domain_name: str) -> bool:
 def get_abuse_email(registrar_name: str) -> str:
     """
 
-    :param registrar_name: the name of the registrar whose abuse e-mail we are looking for
+    :param registrar_name: the name of the registrar whose abuse e-mail we are
+    looking for
     :return: abuse email of the registrar
     """
     links_to_contact_page = search(registrar_name + " abuse email",
@@ -89,10 +90,10 @@ def get_abuse_email(registrar_name: str) -> str:
 def collect_and_format_domain_data(domain_name: str) -> dict:
     """
 
-    :param domain_name: the name of the domain about which we are
+    :param domain_name: the name of the domain on which we are
     collecting info
     :return: the collected record containing the following info
-    about the domain: "domain-name", "registrar-name", "abuse-email",
+    on the domain: "domain-name", "registrar-name", "abuse-email",
     "owner-name", "is-alive"
     """
     whois_record = get_whois_record(domain_name)

@@ -30,8 +30,8 @@ def generate_single_domains_list(connectors: list, prefixes: list, main_names: l
                         elif prefix and not postfix:
                             domains.append(prefix + connector + name + domain_zone)
                         else:
-                            domains.append(prefix + connector + name + connector + postfix +
-                                           domain_zone)
+                            domains.append(prefix + connector + name + connector +
+                                           postfix + domain_zone)
 
     return domains
 
