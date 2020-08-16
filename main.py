@@ -1,6 +1,8 @@
 #! usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+
+import os
 import sys
 
 import psycopg2
@@ -8,7 +10,14 @@ import psycopg2
 from progress.bar import ChargingBar
 
 from domain_data_receiver import collect_and_format_domain_data
-from domains_generator import generate_domains_list
+from domains_generator import generate_final_domains_list
+
+
+connection = psycopg2.connect(
+    user="antisquat",
+    password="StopSquatters",
+    host="localhost",
+    database="pochta_domains")
 
 
 def create_db_table() -> None:
@@ -16,10 +25,10 @@ def create_db_table() -> None:
         cursor = connection.cursor()
         cursor.execute("""
                        CREATE TABLE IF NOT EXISTS squat_domains (
-                           domain_name varchar(50) NOT NULL, 
-                           registrar_name varchar(50),
-                           owner_name varchar(50),
-                           abuse_email varchar(50),
+                           domain_name varchar(150) NOT NULL, 
+                           registrar_name varchar(150),
+                           owner_name varchar(150),
+                           abuse_email varchar(150),
                            is_alive bool NOT NULL,
                            UNIQUE(domain_name)
                        );
@@ -45,7 +54,9 @@ def save_whois_record(whois_record: dict) -> None:
                
                VALUES (
                    '{whois_record["domain-name"]}',
-                   '{whois_record["registrar-name"]}',
+                   '{whois_record["registrar-name"]
+                        if whois_record["registrar-name"]
+                        else 'NULL'}',
                    '{whois_record["owner-name"]
                         if whois_record["owner-name"]
                         else 'NULL'}',
@@ -55,13 +66,15 @@ def save_whois_record(whois_record: dict) -> None:
                    {whois_record['is-alive']})
 
                ON CONFLICT (domain_name) DO UPDATE SET 
-                    registrar_name = '{whois_record["registrar-name"]}', 
+                    registrar_name = '{whois_record["registrar-name"]
+                                        if whois_record["registrar-name"]
+                                        else None}', 
                     owner_name = '{whois_record["owner-name"]
                                         if whois_record["owner-name"]
-                                        else 'NULL'}',
+                                        else None}',
                     abuse_email = '{whois_record["abuse-email"]
                                         if whois_record['abuse-email']
-                                        else "NULL"}',
+                                        else None}',
                     is_alive = {whois_record['is-alive']};
                """)
 
@@ -113,20 +126,38 @@ def check_if_domain_in_db(domain_name) -> bool:
         print("Error while connecting to PostgreSQL:", error)
 
 
+def count_rows() -> int:
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            f"""
+            SELECT count(*) FROM squat_domains;
+            """
+        )
+
+        num_of_rows = cursor.fetchone()[0]
+        cursor.close()
+
+        return num_of_rows
+
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL:", error)
+
+
 def upload_whois_records():
-    domains_list = generate_domains_list()
+    domains_list = generate_final_domains_list()
     create_db_table()
-    bar = ChargingBar("Processing", max=len(domains_list))
+    # bar = ChargingBar("Processing", max=len(domains_list))
+    counter = 0
 
     for domain_name in domains_list:
-        if check_if_domain_in_db(domain_name):
-            print(f"{domain_name} is already saved in our database.")
-        else:
-            domain_data = collect_and_format_domain_data(domain_name)
-            save_whois_record(domain_data)
-            bar.next()
+        domain_data = collect_and_format_domain_data(domain_name)
+        save_whois_record(domain_data)
+        # bar.next()
+        counter += 1
+        print(counter, domain_name, domain_data)
 
-    bar.finish()
+    # bar.finish()
 
 
 def update_whois_records_in_db():
@@ -141,6 +172,23 @@ def update_whois_records_in_db():
     bar.finish()
 
 
+def export_to_csv():
+    try:
+        with open("squat_domains.csv", "w"):
+            cursor = connection.cursor()
+            cursor.execute(
+                f"""
+                   COPY squat_domains TO '{os.getcwd()}/squat_domains.csv'
+                        DELIMITER ',' CSV;
+                   """
+            )
+
+            cursor.close()
+
+    except (Exception, psycopg2.Error) as error:
+        print("Error while connecting to PostgreSQL:", error)
+
+
 def main(instruction="update"):
     if instruction == "update":
         update_whois_records_in_db()
@@ -148,16 +196,13 @@ def main(instruction="update"):
     elif instruction == "upload":
         upload_whois_records()
 
+    elif instruction == "export":
+        export_to_csv()
+
     connection.close()
 
 
 if __name__ == "__main__":
-    connection = psycopg2.connect(
-        user="antisquat",
-        password="StopSquatters",
-        host="localhost",
-        database="pochta_domains")
-
     try:
         main(sys.argv[1])
 
