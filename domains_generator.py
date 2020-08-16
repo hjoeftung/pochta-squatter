@@ -1,11 +1,11 @@
 #! usr/bin/env python3
 # -*- coding: utf-8
 
-CONNECTORS = ["", "-", "_"]
+CONNECTORS = ["", "-"]
 
 RU_PREFIXES = ["", "ру", "рус", "рос"]
 RU_MAIN_NAMES = ["почта"]
-RU_POSTFIX_NAMES = ["", "инфо", ]
+RU_POSTFIX_NAMES = ["", "инфо", "севастополь"]
 RU_DOMAIN_ZONES = [".рф"]
 
 EN_PREFIXES = ["", "ru", "rus", "ros"]
@@ -43,8 +43,6 @@ def generate_final_domains_list() -> list:
                                               RU_POSTFIX_NAMES, RU_DOMAIN_ZONES)
     en_domains = generate_single_domains_list(CONNECTORS, EN_PREFIXES, EN_MAIN_NAMES,
                                               EN_POSTFIXES, EN_DOMAIN_ZONES)
-
-
 
     return list(set(ru_domains + en_domains))
 

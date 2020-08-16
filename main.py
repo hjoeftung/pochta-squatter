@@ -147,22 +147,24 @@ def count_rows() -> int:
 def upload_whois_records():
     domains_list = generate_final_domains_list()
     create_db_table()
-    # bar = ChargingBar("Processing", max=len(domains_list))
-    counter = 0
+    bar = ChargingBar("Uploading data", max=len(domains_list) - count_rows())
 
     for domain_name in domains_list:
-        domain_data = collect_and_format_domain_data(domain_name)
-        save_whois_record(domain_data)
-        # bar.next()
-        counter += 1
-        print(counter, domain_name, domain_data)
 
-    # bar.finish()
+        if check_if_domain_in_db(domain_name):
+            pass
+
+        else:
+            domain_data = collect_and_format_domain_data(domain_name)
+            save_whois_record(domain_data)
+            bar.next()
+
+    bar.finish()
 
 
 def update_whois_records_in_db():
     domains_list = get_domains_list()
-    bar = ChargingBar("Processing", max=len(domains_list))
+    bar = ChargingBar("Updating database", max=len(domains_list))
 
     for domain_name in domains_list:
         domain_data = collect_and_format_domain_data(domain_name)
@@ -171,6 +173,7 @@ def update_whois_records_in_db():
 
     bar.finish()
 
+    print("Database has been successfully updated")
 
 def export_to_csv():
     try:
@@ -178,12 +181,14 @@ def export_to_csv():
             cursor = connection.cursor()
             cursor.execute(
                 f"""
-                   COPY squat_domains TO '{os.getcwd()}/squat_domains.csv'
-                        DELIMITER ',' CSV;
+                   COPY squat_domains TO '/tmp/squat_domains.csv'
+                        WITH (FORMAT CSV, HEADER);
                    """
             )
 
             cursor.close()
+
+            print("Data has been successfully exported to a CSV file")
 
     except (Exception, psycopg2.Error) as error:
         print("Error while connecting to PostgreSQL:", error)
