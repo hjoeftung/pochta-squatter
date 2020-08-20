@@ -94,7 +94,7 @@ def get_domains_list() -> list:
         cursor = connection.cursor()
         cursor.execute(
             f"""
-            SELECT domain_name FROM squat_domains WHERE is_alive = True;
+            SELECT domain_name FROM squat_domains WHERE registrar_name <> 'None';
             """
         )
 
@@ -148,7 +148,7 @@ def count_rows() -> int:
         print("Error while connecting to PostgreSQL:", error)
 
 
-def upload_records__to_database() -> None:
+def upload_records_to_database() -> None:
     domains_list = generate_final_domains_list()
     print(f"{len(domains_list)} domain names generated.")
     create_db_table()
@@ -208,7 +208,7 @@ def main(instruction="update"):
         update_database()
 
     elif instruction == "upload":
-        upload_records__to_database()
+        upload_records_to_database()
 
     elif instruction == "export":
         export_to_csv()

@@ -11,10 +11,11 @@ RU_MAIN_NAMES = ["почта"]
 RU_POSTFIX_NAMES = ["", "инфо", "трекер"]
 RU_DOMAIN_ZONES = [".рф"]
 
-EN_PREFIXES = ["", "www", "ru", "rus", "ros", "zakaznoe", "otpravka", "cabinet", "russian"]
+EN_PREFIXES = ["", "ems", "www", "ru", "rus", "ros", "zakaznoe", "otpravka", "kabinet",
+               "cabinet", "russian"]
 EN_MAIN_NAMES = ["pochta", "post"]
 EN_POSTFIXES = ["", "track", "tracker", "info", "r", "ru", "rus", "ros", "rossii", "russia",
-                "rossiya", "index", "service", "servise"]
+                "rossiya", "index", "service", "servise", "kabinet", "cabinet"]
 EN_DOMAIN_ZONES = [".ru", ".net", ".info", ".org", ".site", ".su", ".com", ".ru.com"]
 
 
@@ -48,7 +49,7 @@ def generate_final_domains_list() -> list:
     en_domains = generate_single_domains_list(CONNECTORS, EN_PREFIXES, EN_MAIN_NAMES,
                                               EN_POSTFIXES, EN_DOMAIN_ZONES)
 
-    dns_twist = DomainFuzz("www.pochta.ru")
+    dns_twist = DomainFuzz("pochta.ru")
     dns_twist.generate()
     dns_twist_domains = [domain["domain-name"] for domain in dns_twist.domains]
 
