@@ -4,12 +4,14 @@
 
 import re
 import sys
+import urllib
 
 import requests
 import whois
 
 from bs4 import BeautifulSoup
 from googlesearch import search
+from time import sleep
 
 
 def get_whois_record(domain_name: str) -> dict:
@@ -60,6 +62,35 @@ def check_if_alive(domain_name: str) -> bool:
     return False
 
 
+def check_if_infringes(domain_name):
+    flag_words = ["почт", "отправлени", "посылк"]
+    full_domains = ["https://" + domain_name, "http://" + domain_name]
+
+    for full_domain in full_domains:
+        try:
+            domain_response = requests.get(full_domain, timeout=1, stream=True)
+            domain_page = BeautifulSoup(domain_response.text, "html.parser")
+            page_text = domain_page.get_text()
+
+            potential_infringements = [word in page_text for word in flag_words]
+
+            flag_words_counter = 0
+            for word in potential_infringements:
+                if word:
+                    flag_words_counter += 1
+
+            if flag_words_counter >= 2:
+                return True
+
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError):
+            pass
+
+        except urllib.error.HTTPError:
+            sleep(2)
+
+    return False
+
+
 def get_abuse_email(registrar_name: str) -> str:
     """
 
@@ -67,8 +98,9 @@ def get_abuse_email(registrar_name: str) -> str:
     looking for
     :return: abuse email of the registrar
     """
+
     links_to_contact_page = search(registrar_name + " abuse email",
-                                   tld="co.in", num=10, stop=10, pause=2)
+                                   tld="co.in", num=10, stop=10, pause=5)
 
     for link in links_to_contact_page:
         try:
@@ -101,20 +133,28 @@ def collect_and_format_domain_data(domain_name: str) -> dict:
     if whois_record["registrar-name"]:
         whois_record["is-alive"] = check_if_alive(domain_name)
 
-        # In case no email is provided in the whois.whois response
-        # we google for it
-        if not whois_record["abuse-email"]:
-            whois_record["abuse-email"] = get_abuse_email(
-                whois_record["registrar-name"])
+        if whois_record["is-alive"] and whois_record["owner-name"] != "JSC Russian Post":
+            whois_record["potentially-infringes"] = check_if_infringes(domain_name)
+
+            # In case no email is provided in the whois.whois response
+            # for a potentially squatting domain we google for the email
+            """if whois_record["potentially-infringes"] and not whois_record["abuse-email"]:
+                whois_record["abuse-email"] = get_abuse_email(
+                    whois_record["registrar-name"])
+            else:
+                whois_record["abuse-email"] = None"""
+        else:
+            whois_record["potentially-infringes"] = False
 
         for key in whois_record.keys():
             if isinstance(whois_record[key], list):
-                whois_record[key] = whois_record[key][0]
+                whois_record[key] = ", ".join(whois_record[key])
 
         return whois_record
 
     else:
         whois_record["is-alive"] = False
+        whois_record["potentially-infringes"] = False
 
         return whois_record
 

@@ -30,6 +30,7 @@ def create_db_table() -> None:
                            owner_name varchar(150),
                            abuse_email varchar(150),
                            is_alive bool NOT NULL,
+                           potentially_infringes bool,
                            UNIQUE(domain_name)
                        );
                        """)
@@ -50,7 +51,8 @@ def save_whois_record(whois_record: dict) -> None:
                registrar_name, 
                owner_name, 
                abuse_email,
-               is_alive)
+               is_alive,
+               potentially_infringes)
                
                VALUES (
                    '{whois_record["domain-name"]}',
@@ -63,8 +65,9 @@ def save_whois_record(whois_record: dict) -> None:
                    '{whois_record["abuse-email"]
                         if whois_record['abuse-email']
                         else None}',
-                   {whois_record['is-alive']})
-
+                   {whois_record['is-alive']},
+                   {whois_record['potentially-infringes']})
+                        
                ON CONFLICT (domain_name) DO UPDATE SET 
                     registrar_name = '{whois_record["registrar-name"]
                                         if whois_record["registrar-name"]
@@ -75,7 +78,8 @@ def save_whois_record(whois_record: dict) -> None:
                     abuse_email = '{whois_record["abuse-email"]
                                         if whois_record['abuse-email']
                                         else None}',
-                    is_alive = {whois_record['is-alive']};
+                    is_alive = {whois_record['is-alive']},
+                    potentially_infringes = {whois_record['potentially-infringes']};
                """)
 
         cursor.close()
@@ -90,7 +94,7 @@ def get_domains_list() -> list:
         cursor = connection.cursor()
         cursor.execute(
             f"""
-            SELECT domain_name FROM squat_domains;
+            SELECT domain_name FROM squat_domains WHERE is_alive = True;
             """
         )
 
@@ -144,8 +148,9 @@ def count_rows() -> int:
         print("Error while connecting to PostgreSQL:", error)
 
 
-def upload_whois_records() -> None:
+def upload_records__to_database() -> None:
     domains_list = generate_final_domains_list()
+    print(f"{len(domains_list)} domain names generated.")
     create_db_table()
     bar = ChargingBar("Uploading data", max=len(domains_list) - count_rows())
 
@@ -162,8 +167,10 @@ def upload_whois_records() -> None:
     bar.finish()
 
 
-def update_whois_records_in_db() -> None:
+def update_database() -> None:
     domains_list = get_domains_list()
+    print(f"{len(domains_list)} records are to be updated")
+
     bar = ChargingBar("Updating database", max=len(domains_list))
 
     for domain_name in domains_list:
@@ -182,7 +189,8 @@ def export_to_csv() -> None:
             cursor = connection.cursor()
             cursor.execute(
                 f"""
-                   COPY squat_domains TO '/tmp/squat_domains.csv'
+                   COPY (SELECT * FROM squat_domains WHERE potentially_infringes = TRUE) 
+                        TO '/tmp/squat_domains.csv'
                         WITH (FORMAT CSV, HEADER);
                    """
             )
@@ -197,10 +205,10 @@ def export_to_csv() -> None:
 
 def main(instruction="update"):
     if instruction == "update":
-        update_whois_records_in_db()
+        update_database()
 
     elif instruction == "upload":
-        upload_whois_records()
+        upload_records__to_database()
 
     elif instruction == "export":
         export_to_csv()
