@@ -2,3 +2,8 @@
 /venv/include/
 /venv/lib/
 /venv/lib64/
+/secrets.env
+/squat_domains.csv
+/.idea
+/__pycache__
+/.pytest_cache

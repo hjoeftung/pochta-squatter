@@ -2,22 +2,32 @@
 # -*- coding: utf-8 -*-
 
 
+import logging
 import os
 import sys
 
 import psycopg2
 
 from progress.bar import ChargingBar
+from dotenv import load_dotenv
 
-from domain_data_receiver import collect_and_format_domain_data
 from domains_generator import generate_final_domains_list
 
 
+logging.basicConfig(
+    format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
+    level=logging.DEBUG,
+    datefmt="%d-%b-%y %H:%M:%S",
+    stream=sys.stderr,
+)
+logger = logging.getLogger("main")
+
+load_dotenv(dotenv_path="secrets.env", override=True)
 connection = psycopg2.connect(
-    user="antisquat",
-    password="StopSquatters",
-    host="localhost",
-    database="pochta_domains")
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASS"),
+    host=os.getenv("DB_HOST"),
+    database=os.getenv("DB_NAME"))
 
 
 def create_db_table() -> None:
@@ -160,7 +170,7 @@ def upload_records_to_database() -> None:
             pass
 
         else:
-            domain_data = collect_and_format_domain_data(domain_name)
+            domain_data = make_initial_search(domain_name)
             save_whois_record(domain_data)
             bar.next()
 
@@ -174,7 +184,7 @@ def update_database() -> None:
     bar = ChargingBar("Updating database", max=len(domains_list))
 
     for domain_name in domains_list:
-        domain_data = collect_and_format_domain_data(domain_name)
+        domain_data = make_initial_search(domain_name)
         save_whois_record(domain_data)
         bar.next()
 

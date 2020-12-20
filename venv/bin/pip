@@ -1,4 +1,4 @@
-#!/home/hjoeftung/Documents/programming/myprojects/pochta-squatter/venv/bin/python
+#!/home/hjoeftung/Documents/programming/myprojects/pochta-squatter/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
