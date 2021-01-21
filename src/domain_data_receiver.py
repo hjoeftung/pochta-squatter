@@ -12,11 +12,12 @@ import aiopg
 import aiohttp
 import psycopg2
 import requests
+import sqlalchemy
 import whois
 
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from googlesearch import search
 
 from domains_generator import generate_final_domains_list
@@ -29,7 +30,7 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 logger = logging.getLogger("domain_data_receiver")
-load_dotenv(dotenv_path="secrets.env", override=True)
+load_dotenv(dotenv_path=find_dotenv(), override=True)
 
 db_params = os.getenv("DB_PARAMS")
 
@@ -39,7 +40,7 @@ async def fetch_html_async(url: str, session: ClientSession, **kwargs) -> str:
 
     :param url: url to which we are sending request
     :param session: aiohttp's ClientSession instance
-    :return: whether the domain is alive (responding) or not
+    :return: the requested page's html
     **kwargs are passed to 'session.request()'
     """
 
@@ -58,7 +59,8 @@ async def check_if_alive_and_infringes(url: str, session: ClientSession,
 
         :param url: url to which we are sending request
         :param session: aiohttp's ClientSession instance
-        :return: whether the domain is alive (responding) or not
+        :return: dictionary with domain_name, is_alive and
+        potentially_infringes keys (results of the check)
         **kwargs are passed to 'session.request()'
     """
 
@@ -148,8 +150,12 @@ def fetch_html_sync(url: str) -> str:
 
         :param url: url to which we are sending request
     """
-    response = requests.get(url=url, timeout=3)
-    return response.text
+    try:
+        response = requests.get(url=url, timeout=3)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Requests exception occurred while requesting {url}: {e}")
+    else:
+        return response.text
 
 
 def get_whois_record(domain_name: str) -> dict:
@@ -180,7 +186,6 @@ def get_abuse_email(registrar_name: str) -> str:
 
     :param registrar_name: the name of the registrar whose abuse e-mail we are
     looking for
-    :param session: aiohttp's ClientSession instance
     :return: abuse email of the registrar
     """
 
@@ -289,9 +294,7 @@ def sync_part() -> None:
 
 
 def get_and_save_domain_data() -> None:
-    """Main function running both async and sync parts of the script
-
-    """
+    """Main function running both async and sync parts of the script"""
     domains_to_check = generate_final_domains_list()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(async_part(domains_to_check))
