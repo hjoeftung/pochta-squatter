@@ -5,8 +5,8 @@ import pytest
 import psycopg2
 from dotenv import load_dotenv
 
-from domain_data_receiver import get_abuse_email
-from domain_data_receiver import check_if_alive_and_infringes
+from async_domain_parser import get_abuse_email
+from async_domain_parser import check_if_alive_and_infringes
 
 
 test_str = """
