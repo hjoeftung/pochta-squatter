@@ -11,9 +11,9 @@ import aiohttp
 
 from aiohttp import ClientSession, ClientTimeout
 from aiopg.sa import create_engine
-from bs4 import BeautifulSoup
 from dotenv import load_dotenv, find_dotenv
-from sqlalchemy import Table, Column, Boolean, String, Text, MetaData
+from bs4 import BeautifulSoup
+from sqlalchemy import Table, Column, Boolean, String, MetaData
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.schema import CreateTable
 
@@ -35,7 +35,7 @@ password = os.getenv("DB_PASS")
 host = os.getenv("DB_HOST")
 database = os.getenv("DB_NAME")
 
-# Create sqlalchemy engine and declarative Base class
+# Create aiopg.sa engine and load metadata
 metadata = MetaData()
 all_domains = Table("all_domains", metadata,
                     Column("url", String(150), primary_key=True, unique=True),
@@ -99,6 +99,10 @@ class Domain:
             self.html = page_text
 
     def check_if_dangerous(self):
+        """if "Домен продается" or "домен продается" in self.html:
+            self.is_dangerous = False
+            return"""
+
         flag_words = ["почт", "росси", "отправлени", "посылк", "письм", "писем"]
         self.html.replace("\n", " ")
         text = self.html.split()
@@ -106,6 +110,7 @@ class Domain:
             word.lower() for word in text for flag_word in flag_words
             if flag_word in word.lower()
         )
+
         if len(potential_infringements) > 2:
             logger.info(f"Potentially infringes: {len(potential_infringements)} "
                         f"have been found: {potential_infringements}")
@@ -143,27 +148,27 @@ async def gather(**kwargs) -> None:
         async with create_engine(user=user, password=password,
                                  database=database, host=host) as engine:
             async with engine.acquire() as conn:
-                await conn.execute('DROP TABLE IF EXISTS all_domains')
+                await conn.execute("DROP TABLE IF EXISTS all_domains")
                 await conn.execute(CreateTable(all_domains))
-                tasks = []
-                urls = generate_final_domains_list()
-                for url in urls:
-                    domain = Domain(url=url, session=session, engine=engine)
-                    tasks.append(
-                        domain.collect_and_save_to_db(**kwargs)
-                    )
-                await asyncio.gather(*tasks)
+            tasks = []
+            urls = generate_final_domains_list()
+            for url in urls:
+                domain = Domain(url=url, session=session, engine=engine)
+                tasks.append(
+                    domain.collect_and_save_to_db(**kwargs)
+                )
+            await asyncio.gather(*tasks)
 
 
 def make_async_queries() -> None:
     """Main function running the requests and
     saving results to database"""
+    start = time.perf_counter()
     loop = asyncio.get_event_loop()
     loop.run_until_complete(gather())
+    elapsed = time.perf_counter() - start
+    print(f"The program finished in {elapsed} seconds.")
 
 
 if __name__ == "__main__":
-    start = time.perf_counter()
     make_async_queries()
-    elapsed = time.perf_counter() - start
-    print(f"The program finished in {elapsed} seconds.")

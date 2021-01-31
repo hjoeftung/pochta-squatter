@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sys
+import time
 
 import requests
 import whois
@@ -13,6 +14,7 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv, find_dotenv
 from googlesearch import search
 from sqlalchemy import create_engine, Column, String
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import select
@@ -135,6 +137,7 @@ class InfringingDomain:
 
 
 def make_sync_queries() -> None:
+    start = time.perf_counter()
     Base.metadata.create_all(engine)
     select_dangerous_domains = select([all_domains.c.url]).where(
         all_domains.c.is_dangerous == True)
@@ -168,9 +171,21 @@ def make_sync_queries() -> None:
                                             registrar_name=domain.registrar_name,
                                             abuse_email=domain.abuse_email
                                         )
-            session.add(infringing_domain_record)
-            session.commit()
+            try:
+                session.add(infringing_domain_record)
+                session.commit()
+            except IntegrityError:
+                domain_to_be_updated = session.execute(
+                    select(InfringingDomainDB).
+                    filter_by(url=domain.url)).scalar_one()
+                domain_to_be_updated.owner_name = domain.owner_name
+                domain_to_be_updated.registrar_name = domain.registrar_name
+                domain_to_be_updated.abuse_email = domain.abuse_email
+                session.commit()
             logger.info(f"Saved whois record for {domain.url} to database")
+
+    elapsed = time.perf_counter() - start
+    print(f"The program finished in {elapsed} seconds.")
 
 
 if __name__ == "__main__":

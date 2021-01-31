@@ -2,20 +2,21 @@
 # -*- coding: utf-8
 
 from dnstwist import DomainFuzz
+import random
 
 
 CONNECTORS = ["", "-"]
 
-RU_PREFIXES = ["", "ру", "рус", "рос", "заказное", "отправка", "кабинет", "российская"]
+RU_PREFIXES = ["", "заказное", "отправка", "кабинет", "российская"]
 RU_MAIN_NAMES = ["почта"]
-RU_POSTFIX_NAMES = ["", "инфо", "трекер"]
+RU_POSTFIX_NAMES = ["", "трекер"]
 RU_DOMAIN_ZONES = [".рф"]
 
-EN_PREFIXES = ["", "ems", "www", "ru", "rus", "ros", "zakaznoe", "otpravka", "kabinet",
+EN_PREFIXES = ["", "ems", "www", "zakaznoe", "otpravka", "kabinet",
                "cabinet", "russian"]
 EN_MAIN_NAMES = ["pochta", "post"]
-EN_POSTFIXES = ["", "track", "tracker", "info", "r", "ru", "rus", "ros", "rossii", "russia",
-                "rossiya", "index", "service", "servise", "kabinet", "cabinet"]
+EN_POSTFIXES = ["", "track", "tracker", "rossii", "russia",
+                "service", "servise", "kabinet", "cabinet"]
 EN_DOMAIN_ZONES = [".ru", ".net", ".info", ".org", ".site", ".su", ".com", ".ru.com"]
 
 
@@ -52,6 +53,7 @@ def generate_final_domains_list() -> list:
     dns_twist = DomainFuzz("pochta.ru")
     dns_twist.generate()
     dns_twist_domains = [domain["domain-name"] for domain in dns_twist.domains]
+    print(len(dns_twist_domains))
     final_domains_list = ru_domains + en_domains + dns_twist_domains
     final_domains_list = [protocol + domain_name for domain_name in final_domains_list
                           for protocol in ["http://", "https://"]]
@@ -60,5 +62,6 @@ def generate_final_domains_list() -> list:
 
 
 if __name__ == "__main__":
-    [print(domain) for domain in generate_final_domains_list()]
-    print(len(generate_final_domains_list()))
+    domains_list = generate_final_domains_list()
+    print(len(domains_list))
+    print(random.sample(domains_list, 20))

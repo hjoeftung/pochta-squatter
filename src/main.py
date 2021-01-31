@@ -44,7 +44,7 @@ def count_rows():
 
 
 def run_queries() -> None:
-    # make_async_queries()
+    make_async_queries()
     make_sync_queries()
     print("Database has been successfully updated")
 
