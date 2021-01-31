@@ -10,13 +10,14 @@ import requests
 import whois
 
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from googlesearch import search
 from sqlalchemy import create_engine, Column, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import select
 
-from async_domain_parser import Domain
+from async_domain_parser import all_domains
 
 
 # Initialize a logger
@@ -29,13 +30,13 @@ logging.basicConfig(
 logger = logging.getLogger("sync_domain_parser")
 
 # Load database's params from .env
-load_dotenv(dotenv_path="secrets.env", override=True)
+load_dotenv(dotenv_path=find_dotenv(), override=True)
 user = os.getenv("DB_USER")
 password = os.getenv("DB_PASS")
 host = os.getenv("DB_HOST")
 database = os.getenv("DB_NAME")
 
-# Create sqlalchemy engine, session and declarative base
+# Create sqlalchemy engine and session
 engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}", echo=True)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
@@ -52,12 +53,10 @@ class InfringingDomainDB(Base):
     abuse_email = Column(String(500))
 
     def __repr__(self):
-        return (f"""
-        <InfringingDomain(url={self.url},
-                          owner_name={self.owner_name},
-                          registrar_name={self.registrar_name},
-                          abuse_email={self.abuse_email}
-                          )>""")
+        return f"<InftingingDomainDB(url={self.url}," \
+               f"   owner_name={self.owner_name}," \
+               f"   registrar_name={self.registrar_name}," \
+               f"   abuse_email={self.abuse_email})>"
 
 
 class InfringingDomain:
@@ -100,9 +99,9 @@ class InfringingDomain:
     def get_abuse_email(self):
         """Get the registrar's abuse email to which we may send complaints"""
 
-        links_to_contact_page = search(self.registrar_name + " abuse email",
+        links_to_contact_page = search(self.registrar_name + " registrar abuse email",
                                        tld="co.in", num=10, stop=10, pause=5)
-
+        print([link for link in links_to_contact_page])
         for link in links_to_contact_page:
             try:
                 html = self.fetch_html(url=link)
@@ -117,33 +116,43 @@ class InfringingDomain:
                 pass
 
             else:
-                contacts_page = BeautifulSoup(html, "html.parser")
-                email_pattern = re.compile(
-                    "\\s[^\\s]*abuse@[a-z]*[.][a-z]{2,6}[\\s.,]", re.IGNORECASE
-                )
-                abuse_emails_paras = contacts_page.find_all(string=email_pattern)
-                if abuse_emails_paras:
-                    abuse_emails = [email_pattern.search(email_para).group()[1:-1]
-                                    for email_para in abuse_emails_paras]
+                if html:
+                    contacts_page = BeautifulSoup(html, "html.parser")
+                    email_pattern = re.compile(
+                        "\\s[^\\s]*abuse@[a-z]*[.][a-z]{2,6}[\\s.,]", re.IGNORECASE
+                    )
+                    abuse_emails_paras = contacts_page.find_all(string=email_pattern)
 
-                    logger.info(f"Abuse emails for registrar {self.registrar_name} "
-                                f"have been found: {','.join(abuse_emails)}")
-                    self.abuse_email = ", ".join(abuse_emails)
+                    if abuse_emails_paras:
+                        abuse_emails = [email_pattern.search(email_para).group()[1:-1]
+                                        for email_para in abuse_emails_paras]
+
+                        logger.info(f"Abuse emails for registrar {self.registrar_name} "
+                                    f"have been found: {','.join(abuse_emails)}")
+                        self.abuse_email = ", ".join(abuse_emails)
+
+                        return
 
 
-def main() -> None:
-    infringing_domains = session.query(Domain).filter(
-        Domain.potentially_infringes==True)
+def make_sync_queries() -> None:
+    Base.metadata.create_all(engine)
+    select_dangerous_domains = select([all_domains.c.url]).where(
+        all_domains.c.is_dangerous == True)
+    conn = engine.connect()
+    dangerous_domains_list = conn.execute(select_dangerous_domains)
 
-    for domain_record in infringing_domains:
-        domain = InfringingDomain(domain_record.domain_name)
+    for domain_name in dangerous_domains_list:
+        domain = InfringingDomain(domain_name['url'])
 
         if domain.get_whois_record():
             logger.info(f"Received whois record for: {domain.url}")
 
             if domain.owner_name == "JSC Russian Post":
-                domain_record.potentially_infringing = False
-                session.add(domain_record)
+                upd = all_domains.update().\
+                    where(all_domains.c.url == domain_name).\
+                    values(all_domains.c.is_dangerous == False)
+                conn.execute(upd)
+                continue
 
             if not domain.abuse_email and domain.registrar_name:
                 logger.info(f"No abuse e-mail info found for: {domain.url}")
@@ -161,4 +170,8 @@ def main() -> None:
                                         )
             session.add(infringing_domain_record)
             session.commit()
-            logger.info(f"Saved whois record for {domain} to database")
+            logger.info(f"Saved whois record for {domain.url} to database")
+
+
+if __name__ == "__main__":
+    make_sync_queries()

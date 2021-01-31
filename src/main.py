@@ -8,10 +8,13 @@ import sys
 
 import psycopg2
 
-from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv, find_dotenv
 
-from domains_generator import generate_final_domains_list
-from async_domain_parser import main
+from async_domain_parser import make_async_queries
+from sync_domain_parser import make_sync_queries, InfringingDomainDB
 
 # Initializing logger
 logging.basicConfig(
@@ -22,90 +25,41 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
+# Load database's params from .env
+load_dotenv(dotenv_path=find_dotenv(), override=True)
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASS")
+host = os.getenv("DB_HOST")
+database = os.getenv("DB_NAME")
 
-def get_domains_list() -> list:
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT domain_name FROM squat_domains WHERE registrar_name <> 'None';
-            """
-        )
-
-        domains_list = [domain_name_tuple[0] for domain_name_tuple in
-                        cursor.fetchall()]
-        cursor.close()
-
-        return domains_list
-
-    except (Exception, psycopg2.Error) as error:
-        logger.error("Error while connecting to PostgreSQL:", error)
+# Create sqlalchemy engine and session
+engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}", echo=True)
+Base = declarative_base()
+Session = sessionmaker(bind=engine)
+session = Session()
 
 
-def check_if_domain_in_db(domain_name) -> bool:
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT exists (SELECT 1 FROM squat_domains 
-                           WHERE domain_name = '{domain_name}');
-            """
-        )
-
-        domain_is_in_db = cursor.fetchone()[0]
-        cursor.close()
-
-        return domain_is_in_db == 1
-
-    except (Exception, psycopg2.Error) as error:
-        logger.error("Error while connecting to PostgreSQL:", error)
+def count_rows():
+    return session.query(InfringingDomainDB).count()
 
 
-def count_rows() -> int:
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            f"""
-            SELECT count(*) FROM squat_domains;
-            """
-        )
-
-        num_of_rows = cursor.fetchone()[0]
-        cursor.close()
-
-        return num_of_rows
-
-    except (Exception, psycopg2.Error) as error:
-        logger.error("Error while connecting to PostgreSQL:", error)
-
-
-def first_run() -> None:
-    domains_list = generate_final_domains_list()
-    print(f"{len(domains_list)} domain names generated.")
-    create_db_table()
-    main()
-
-
-def update_database() -> None:
-    domains_list_len = count_rows()
-    print(f"{domains_list_len} records are to be updated")
-    main()
+def run_queries() -> None:
+    # make_async_queries()
+    make_sync_queries()
     print("Database has been successfully updated")
 
 
 def export_to_csv() -> None:
     try:
         with open("squat_domains.csv", "w"):
-            cursor = connection.cursor()
-            cursor.execute(
-                f"""
-                   COPY (SELECT * FROM squat_domains WHERE potentially_infringes = TRUE) 
-                        TO '/tmp/squat_domains.csv'
-                        WITH (FORMAT CSV, HEADER);
-                   """
-            )
-
-            cursor.close()
+            with engine.connect() as conn:
+                conn.execute(
+                    f"""
+                       COPY (SELECT * FROM infringing_domains) 
+                            TO '/tmp/squat_domains.csv'
+                            WITH (FORMAT CSV, HEADER);
+                       """
+                )
 
             print("Data has been successfully exported to a CSV file")
 
@@ -113,17 +67,12 @@ def export_to_csv() -> None:
         print("Error while connecting to PostgreSQL:", error)
 
 
-def main(instruction="update"):
-    if instruction == "update":
-        update_database()
-
-    elif instruction == "upload":
-        first_run()
+def main(instruction="run"):
+    if instruction == "run":
+        run_queries()
 
     elif instruction == "export":
         export_to_csv()
-
-    connection.close()
 
 
 if __name__ == "__main__":
