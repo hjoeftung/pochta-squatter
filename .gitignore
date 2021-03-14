@@ -1,7 +1,4 @@
-/venv/bin/
-/venv/include/
-/venv/lib/
-/venv/lib64/
+/venv/
 /.env
 /squat_domains.csv
 /squat_domains.xlsx
@@ -9,3 +6,4 @@
 /__pycache__
 /.pytest_cache
 /.git
+/.log

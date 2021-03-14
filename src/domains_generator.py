@@ -53,7 +53,6 @@ def generate_final_domains_list() -> list:
     dns_twist = DomainFuzz("pochta.ru")
     dns_twist.generate()
     dns_twist_domains = [domain["domain-name"] for domain in dns_twist.domains]
-    print(len(dns_twist_domains))
     final_domains_list = ru_domains + en_domains + dns_twist_domains
     final_domains_list = [protocol + domain_name for domain_name in final_domains_list
                           for protocol in ["http://", "https://"]]
@@ -61,7 +60,4 @@ def generate_final_domains_list() -> list:
     return final_domains_list
 
 
-if __name__ == "__main__":
-    domains_list = generate_final_domains_list()
-    print(len(domains_list))
-    print(random.sample(domains_list, 20))
+domains_list = generate_final_domains_list()

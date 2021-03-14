@@ -32,7 +32,7 @@ def test_domain_google_search(domain):
     assert domain.get_abuse_email(registrar_name="RU-REG-RU") == "abuse@reg.ru"
     assert domain.get_abuse_email(registrar_name="Regional Network Information Center, JSC dba RU-CENTER") == "tld-abuse@nic.ru"
 
-@
+
 async def test_async_funcs(**kwargs):
     async with ClientSession() as session:
         async with create_engine(user=user, password=password,
@@ -46,11 +46,11 @@ async def test_async_funcs(**kwargs):
             url5 = "https://ems-post.ru"
 
             domain1 = Domain(url=url1, session=session, engine=engine)
-            assert await domain1.check_if_alive(**kwargs) == False
+            assert await domain1._check_if_alive(**kwargs) == False
 
             domain2 = Domain(url=url2, session=session, engine=engine)
-            assert domain2.check_if_alive(**kwargs) == True
-            assert domain2.check_if_dangerous() == True
+            assert domain2._check_if_alive(**kwargs) == True
+            assert domain2._check_if_dangerous() == True
 
             domain3 = Domain(url=url3, session=session, engine=engine)
             assert
