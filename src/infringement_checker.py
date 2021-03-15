@@ -10,10 +10,10 @@ import aiohttp
 
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import text
 
 from src.domains_generator import domains_list
-from src.model import async_engine, all_domains, metadata
+from src.model import async_engine, metadata
 from src.progress_bar import ProgressBar
 
 
@@ -47,7 +47,7 @@ class Domain:
         :return: the requested page's html
         **kwargs are passed to 'self.session.request()'
         """
-        timeout = ClientTimeout(3)
+        timeout = ClientTimeout(total=120)
         response = await self.session.request(
             method="GET", url=self.url, timeout=timeout, **kwargs)
         response.raise_for_status()
@@ -106,19 +106,16 @@ class Domain:
             self._check_if_dangerous()
 
     async def _save_record(self):
-        insert_values = insert(all_domains).values(
-            url=f"{self.url}",
-            is_alive=self.is_alive,
-            is_dangerous=self.is_dangerous
+        upsert_stmt = text(
+            f"INSERT INTO all_domains (url, is_alive, is_dangerous) "
+            f"VALUES ('{self.url}', {self.is_alive}, {self.is_dangerous}) "
+            f"ON CONFLICT (url) DO UPDATE SET "
+            f"is_alive={self.is_alive}, is_dangerous={self.is_dangerous};"
         )
-        update_records = insert_values.on_conflict_do_update(
-            index_elements=[all_domains.c.url],
-            set_=dict(is_alive=insert_values.excluded.is_alive,
-                      is_dangerous=insert_values.excluded.is_alive))
 
         try:
-            async with self.engine.connect() as conn:
-                await conn.execute(update_records)
+            async with self.engine.begin() as conn:
+                await conn.execute(upsert_stmt)
                 logger.info(f"Successfully written {self.url} to database")
 
         except Exception as e:
@@ -132,18 +129,19 @@ class Domain:
 
 async def gather(**kwargs) -> None:
     timeout = ClientTimeout(total=1800)
+    conn = aiohttp.TCPConnector(limit=10000)
+    tasks = []
+    urls = domains_list
 
-    async with ClientSession(timeout=timeout) as session:
+    async with ClientSession(timeout=timeout, connector=conn) as session:
         async with async_engine.begin() as conn:
+            await conn.run_sync(metadata.drop_all)
             await conn.run_sync(metadata.create_all)
 
-            tasks = []
-            urls = domains_list
-
-            for url in urls:
-                domain = Domain(url=url, session=session, engine=async_engine)
-                tasks.append(domain.collect_and_save(**kwargs))
-            await asyncio.gather(*tasks)
+        for url in urls:
+            domain = Domain(url=url, session=session, engine=async_engine)
+            tasks.append(domain.collect_and_save(**kwargs))
+        await asyncio.gather(*tasks)
 
 
 @measure_timing

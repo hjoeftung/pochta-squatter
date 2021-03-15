@@ -15,7 +15,7 @@ database = os.getenv("DB_NAME")
 
 # Create sqlalchemy engine and session
 async_engine = create_async_engine(
-    f"postgresql+asyncpg://{user}:{password}@{host}/{database}"
+    f"postgresql+asyncpg://{user}:{password}@{host}/{database}", echo=True
 )
 metadata = MetaData(bind=async_engine)
 

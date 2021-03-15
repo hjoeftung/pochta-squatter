@@ -5,7 +5,7 @@ import logging
 
 import whois
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, text
 from sqlalchemy.dialects.postgresql import insert
 
 from src.infringement_checker import measure_timing
@@ -37,13 +37,14 @@ def get_whois_record(url: str) -> dict:
 
 
 async def get_dangerous_domains():
-    select_dangerous_domains = select([all_domains.c.url]).where(
+    select_dangerous_domains = select(all_domains.c.url).where(
         all_domains.c.is_dangerous == True)
 
     async with async_engine.begin() as conn:
-        dangerous_domains_list = await conn.execute(select_dangerous_domains)
-
-    return [domain["url"] for domain in dangerous_domains_list]
+        result = await conn.execute(select_dangerous_domains)
+    dangerous_domains_list = [domain["url"] for domain in result.fetchall()]
+    print(len(dangerous_domains_list))
+    return dangerous_domains_list
 
 
 async def mark_as_non_dangerous(domain_name):
@@ -56,32 +57,30 @@ async def mark_as_non_dangerous(domain_name):
         await conn.execute(upd_stmt)
 
 
-async def save_record(whois_record):
-    insert_values = insert(dangerous_domains).values(
-        url=f"{whois_record['domain_name']}",
-        owner_name=f"{whois_record['org']}",
-        registrar_name=f"{whois_record['registrar']}",
-        abuse_email=f"{whois_record['emails']}"
-    )
-    update_records = insert_values.on_conflict_do_update(
-        index_elements=[dangerous_domains.c.url],
-        set_=dict(
-            owner_name=insert_values.excluded.owner_name,
-            registrar_name=insert_values.excluded.registrar_name,
-            abuse_email=insert_values.excluded.abuse_email
-        )
-    )
-    async with async_engine.connect() as conn:
-        await conn.execute(update_records)
+async def save_record(whois_record, progress_bar):
+    url = whois_record['domain_name'] if whois_record['domain_name'] else ""
+    owner_name = whois_record['org'] if whois_record['org'] else ""
+    registrar_name = whois_record['registrar'] if whois_record['registrar'] else ""
+    abuse_email = whois_record['emails'] if whois_record['emails'] else ""
 
+    upsert_stmt = text(
+        f"INSERT INTO dangerous_domains (url, owner_name, registrar_name, abuse_email) "
+        f"VALUES ('{url}', '{owner_name}', '{registrar_name}', '{abuse_email}') "
+        f"ON CONFLICT (url) DO UPDATE SET "
+        f"owner_name='{url}', registrar_name='{owner_name}', "
+        f"abuse_email='{abuse_email}';"
+    )
+
+    async with async_engine.begin() as conn:
+        await conn.execute(upsert_stmt)
+    next(progress_bar)
     logger.info(f"Saved whois record for {whois_record['domain_name']} to database")
 
 
 async def gather() -> None:
     dangerous_domains_list = await get_dangerous_domains()
     progress_bar = ProgressBar(
-        len(list(dangerous_domains_list)),
-        "Collecting info on dangerous domains"
+        len(dangerous_domains_list), "Collecting info on dangerous domains"
     )
     tasks = []
     for url in dangerous_domains_list:
@@ -95,8 +94,7 @@ async def gather() -> None:
         if isinstance(whois_record["emails"], list):
             whois_record["emails"] = ", ".join(whois_record["emails"])
 
-        tasks.append(save_record(whois_record))
-        next(progress_bar)
+        tasks.append(save_record(whois_record, progress_bar))
 
     await asyncio.gather(*tasks)
 

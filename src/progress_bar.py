@@ -17,12 +17,12 @@ class ProgressBar:
         if self.num_of_steps < self.width:
             self.cur_progress_step += 1
 
-        elif self.cur_operation_step == (self.cur_progress_step *
-                                       self.progress_step_size + 1):
+        elif self.cur_operation_step == self.cur_progress_step * self.progress_step_size + 1:
             self.cur_progress_step += 1
 
-        self.progress_state = ('#' * self.cur_progress_step) + (
-            '-' * (self.width - self.cur_progress_step + 1)
+        self.progress_state = (
+            '#' * (self.cur_progress_step - 1) + '-' *
+            (self.width - self.cur_progress_step + 1)
         )
         current_progress = (f"{self.legend}  [{self.progress_state}]  "
                             f"{self.cur_operation_step}/{self.num_of_steps}")
@@ -32,7 +32,7 @@ class ProgressBar:
             print(f"{self.legend}  [{'#' * self.width}]  "
                   f"{self.cur_operation_step}/{self.num_of_steps}")
 
-        if self.cur_progress_step > self.width + 2:
+        if self.cur_progress_step > self.width + 1:
             raise StopIteration
 
     def set_up_progress_bar(self):
