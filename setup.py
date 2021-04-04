@@ -6,7 +6,6 @@ from setuptools import find_packages, setup
 
 module_name = "pochta_squatter"
 
-
 module = SourceFileLoader(
     module_name, os.path.join(module_name, "__init__.py")
 ).load_module(module_name)
@@ -26,14 +25,11 @@ def load_requirements(file_name: str) -> list:
 setup(
     name=module_name,
     author="hjoefung",
+    version='1.0',
+    long_description=open("README.md").read(),
     python_requires=">=3.8",
-    packages=find_packages(exclude=["tests"]),
+    packages=find_packages(),
     install_requires=load_requirements("requirements.txt"),
-    extras_require={"dev": load_requirements("requirements.dev.txt")},
-    entry_points={
-        "console_scripts": [
-            "{0} = {0}:__init__".format(module_name)
-        ]
-    },
+    zip_safe=False,
     include_package_data=True
 )
