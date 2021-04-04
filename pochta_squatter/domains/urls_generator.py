@@ -1,10 +1,6 @@
 #! usr/bin/env python3
 # -*- coding: utf-8
 
-from dnstwist import DomainFuzz
-import random
-
-
 CONNECTORS = ["", "-"]
 
 RU_PREFIXES = ["", "заказное", "отправка", "кабинет", "российская"]
@@ -20,8 +16,11 @@ EN_POSTFIXES = ["", "track", "tracker", "rossii", "russia",
 EN_DOMAIN_ZONES = [".ru", ".net", ".info", ".org", ".site", ".su", ".com", ".ru.com"]
 
 
-def generate_single_domains_list(connectors: list, prefixes: list, main_names: list,
-                                 postfixes: list, domain_zones: list) -> list:
+def generate_single_domains_list(
+    connectors: list, prefixes: list, main_names: list,
+    postfixes: list, domain_zones: list
+) -> list:
+
     domains = []
 
     for connector in connectors:
@@ -45,19 +44,16 @@ def generate_single_domains_list(connectors: list, prefixes: list, main_names: l
 def generate_final_domains_list() -> list:
     print("Generating domains list.\n")
 
-    ru_domains = generate_single_domains_list(CONNECTORS, RU_PREFIXES, RU_MAIN_NAMES,
-                                              RU_POSTFIX_NAMES, RU_DOMAIN_ZONES)
-    en_domains = generate_single_domains_list(CONNECTORS, EN_PREFIXES, EN_MAIN_NAMES,
-                                              EN_POSTFIXES, EN_DOMAIN_ZONES)
+    ru_domains = generate_single_domains_list(
+        CONNECTORS, RU_PREFIXES, RU_MAIN_NAMES,
+        RU_POSTFIX_NAMES, RU_DOMAIN_ZONES
+    )
+    en_domains = generate_single_domains_list(
+        CONNECTORS, EN_PREFIXES, EN_MAIN_NAMES,EN_POSTFIXES, EN_DOMAIN_ZONES
+    )
 
-    dns_twist = DomainFuzz("pochta.ru")
-    dns_twist.generate()
-    dns_twist_domains = [domain["domain-name"] for domain in dns_twist.domains]
-    final_domains_list = ru_domains + en_domains + dns_twist_domains
-    final_domains_list = [protocol + domain_name for domain_name in final_domains_list
-                          for protocol in ["http://", "https://"]]
-
-    return final_domains_list
+    return [protocol + url for url in [*ru_domains, *en_domains]
+            for protocol in ["http://", "https://"]]
 
 
 domains_list = generate_final_domains_list()

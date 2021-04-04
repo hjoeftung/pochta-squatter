@@ -4,7 +4,6 @@ import re
 import requests
 
 from bs4 import BeautifulSoup
-from googlesearch import search
 
 
 logger = logging.getLogger(__name__)

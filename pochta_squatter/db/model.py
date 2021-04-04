@@ -13,7 +13,7 @@ password = os.getenv("DB_PASS")
 host = os.getenv("DB_HOST")
 database = os.getenv("DB_NAME")
 
-# Create sqlalchemy engine and session
+# Create sqlalchemy engine and metadata
 async_engine = create_async_engine(
     f"postgresql+asyncpg://{user}:{password}@{host}/{database}", echo=True
 )

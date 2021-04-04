@@ -10,15 +10,15 @@ import aiohttp
 
 from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
-from sqlalchemy import text
+from sqlalchemy import text, update
 
-from src.domains_generator import domains_list
-from src.model import async_engine, metadata
-from src.progress_bar import ProgressBar
+from pochta_squatter.domains.urls_generator import domains_list
+from pochta_squatter.domains.whois import (
+    get_whois_record, save_whois_record)
+from pochta_squatter.db.model import async_engine, metadata, all_domains
 
 
 logger = logging.getLogger(__name__)
-progress_bar = ProgressBar(len(domains_list), "Checking for dangerous urls")
 
 
 def measure_timing(function):
@@ -30,6 +30,7 @@ def measure_timing(function):
         finally:
             runtime = time.perf_counter() - start
             print(f"{function.__name__} finished in {runtime} seconds.")
+
     return _measure
 
 
@@ -40,6 +41,7 @@ class Domain:
         self.is_dangerous = False
         self.session = session
         self.engine = engine
+        self.text = ""
 
     async def _fetch_html_async(self, **kwargs) -> str:
         """Fetch html from the url asynchronously
@@ -57,7 +59,6 @@ class Domain:
 
     async def _check_if_alive(self, **kwargs):
         """Check whether the site is alive
-
             **kwargs are passed to 'session.request()'
         """
 
@@ -66,9 +67,7 @@ class Domain:
             html = await self._fetch_html_async(**kwargs)
 
         except (aiohttp.ClientError, aiohttp.http.HttpProcessingError) as e:
-            logger.error(
-                f"aiohttp exception for {self.url}: {e}")
-
+            logger.error(f"aiohttp exception for {self.url}: {e}")
             self.is_alive = False
             return False
 
@@ -83,13 +82,12 @@ class Domain:
             self.is_alive = True
             domain_page = BeautifulSoup(html, "html.parser")
             page_text = domain_page.get_text()
-
-            self.html = page_text
+            self.text = page_text
 
     def _check_if_dangerous(self):
         flag_words = ["почт", "росси", "отправлени", "посылк", "письм", "писем"]
-        self.html.replace("\n", " ")
-        text = self.html.split()
+        self.text.replace("\n", " ")
+        text = self.text.split()
         potential_infringements = set(
             word.lower() for word in text for flag_word in flag_words
             if flag_word in word.lower()
@@ -100,7 +98,7 @@ class Domain:
                         f"have been found: {potential_infringements}")
             self.is_dangerous = True
 
-    async def _collect_info(self, **kwargs):
+    async def _make_checks(self, **kwargs):
         await self._check_if_alive(**kwargs)
         if self.is_alive:
             self._check_if_dangerous()
@@ -117,14 +115,38 @@ class Domain:
             async with self.engine.begin() as conn:
                 await conn.execute(upsert_stmt)
                 logger.info(f"Successfully written {self.url} to database")
-
         except Exception as e:
             logger.error(f"Unexpected error occurred: {e}")
 
-    async def collect_and_save(self, **kwargs):
-        await self._collect_info(**kwargs)
+    async def mark_as_non_dangerous(self):
+        upd_stmt = (
+            update(all_domains).
+                where(all_domains.c.url == self.url).
+                values(is_dangerous=False)
+        )
+
+        try:
+            async with async_engine.connect() as conn:
+                await conn.execute(upd_stmt)
+        except Exception as e:
+            logger.error(f"Unexpected error occurred: {e}")
+
+    async def process_whois(self):
+        whois_record = get_whois_record(self.url)
+
+        if whois_record["org"] == "JSC Russian Post":
+            await self.mark_as_non_dangerous()
+        if isinstance(whois_record["emails"], list):
+            whois_record["emails"] = ", ".join(whois_record["emails"])
+
+        await save_whois_record(whois_record)
+
+    async def process_url(self, **kwargs):
+        await self._make_checks(**kwargs)
         await self._save_record()
-        next(progress_bar)
+
+        if self.is_dangerous:
+            await self.process_whois()
 
 
 async def gather(**kwargs) -> None:
@@ -135,19 +157,16 @@ async def gather(**kwargs) -> None:
 
     async with ClientSession(timeout=timeout, connector=conn) as session:
         async with async_engine.begin() as conn:
-            await conn.run_sync(metadata.drop_all)
             await conn.run_sync(metadata.create_all)
 
         for url in urls:
             domain = Domain(url=url, session=session, engine=async_engine)
-            tasks.append(domain.collect_and_save(**kwargs))
+            tasks.append(domain.process_url(**kwargs))
         await asyncio.gather(*tasks)
 
 
 @measure_timing
 def find_dangerous_domains() -> None:
-    """Main function running the requests and
-    saving results to database"""
     loop = asyncio.get_event_loop()
     loop.run_until_complete(gather())
 
