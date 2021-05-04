@@ -6,22 +6,21 @@ Russian Post's trademarks
 
 ## Installation
 
-Currently, installation with pip is unavailable.
-Please clone the repository with ```git clone 
-https://github.com/hjoeftung/pochta-squatter```.
+Run ```docker-compose build``` to install the app. 
+You will need to have Docker and Docker Compose to be
+installed on your machine.
 
 ## Usage
+Run ```docker-compose up``` to get the servers running. 
+The app will be available at http://localhost.
 
-```python main.py upload``` - make initial search
-for potentially infringing domains and populate 
-the database with results. If you use program 
-for the first time start with this command.
+API is on http://localhost/api/domains. Only two
+queries are supported for now: 
+- http://localhost/api/domains/?fmt=json - will return JSON
+with a list of potentially dangerous domains;
+- http://localhost/api/domains/?fmt=csv - will return a link
+  to CSV file with potentially dangerous domains.
 
-```python main.py update``` - make a subsequent
-search and refresh results in the database.
-
-```python main.py export``` - export the results
-in the database to a .csv file.
 
 ## License
 

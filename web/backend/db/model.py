@@ -1,8 +1,10 @@
 import asyncio
 import os
 
+import asyncpg
+
 from dotenv import load_dotenv, find_dotenv
-from sqlalchemy import MetaData, Table, Column, String, Boolean, ForeignKey
+from sqlalchemy import MetaData, Table, Column, String, Boolean, ForeignKey, text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
@@ -14,9 +16,8 @@ host = os.getenv("DB_HOST")
 database = os.getenv("DB_NAME")
 
 # Create sqlalchemy engine and metadata
-async_engine = create_async_engine(
-    f"postgresql+asyncpg://{user}:{password}@{host}/{database}", echo=True
-)
+url = f"postgresql+asyncpg://{user}:{password}@postgres:5432/{database}"
+async_engine = create_async_engine(url, echo=True)
 metadata = MetaData(bind=async_engine)
 
 
@@ -34,12 +35,3 @@ dangerous_domains = Table(
     Column("registrar_name", String(150)),
     Column("abuse_email", String(150))
 )
-
-
-async def create_tables():
-    async with async_engine.begin() as conn:
-        await conn.run_sync(metadata.create_all())
-
-
-def set_up_db():
-    asyncio.run(create_tables())

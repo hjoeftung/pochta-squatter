@@ -6,7 +6,7 @@ import whois
 
 from sqlalchemy import text
 
-from pochta_squatter.db.model import async_engine
+from ..db.model import async_engine
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def get_whois_record(url: str) -> dict:
             whois_record["domain_name"] = url
         return whois_record
 
-    except whois.parser.PywhoisError:
+    except Exception:
         logger.info(f"Have not found whois record for {url}")
         return {"domain_name": url, "org": "", "registrar": "", "emails": ""}
 

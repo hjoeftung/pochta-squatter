@@ -12,10 +12,9 @@ from aiohttp import ClientSession, ClientTimeout
 from bs4 import BeautifulSoup
 from sqlalchemy import text, update
 
-from pochta_squatter.domains.urls_generator import domains_list
-from pochta_squatter.domains.whois import (
-    get_whois_record, save_whois_record)
-from pochta_squatter.db.model import async_engine, metadata, all_domains
+from .urls_generator import domains_list
+from .whois_parser import get_whois_record, save_whois_record
+from ..db.model import async_engine, metadata, all_domains, dangerous_domains
 
 
 logger = logging.getLogger(__name__)
@@ -49,9 +48,10 @@ class Domain:
         :return: the requested page's html
         **kwargs are passed to 'self.session.request()'
         """
-        timeout = ClientTimeout(total=120)
+        timeout = ClientTimeout(total=300)
         response = await self.session.request(
-            method="GET", url=self.url, timeout=timeout, **kwargs)
+            method="GET", url=self.url, timeout=timeout, **kwargs
+        )
         response.raise_for_status()
         logging.info(f"Got response {response.status} for URL: {self.url}")
         html = await response.text()
@@ -87,9 +87,9 @@ class Domain:
     def _check_if_dangerous(self):
         flag_words = ["почт", "росси", "отправлени", "посылк", "письм", "писем"]
         self.text.replace("\n", " ")
-        text = self.text.split()
+        page_text = self.text.split()
         potential_infringements = set(
-            word.lower() for word in text for flag_word in flag_words
+            word.lower() for word in page_text for flag_word in flag_words
             if flag_word in word.lower()
         )
 
@@ -149,10 +149,9 @@ class Domain:
             await self.process_whois()
 
 
-async def gather(**kwargs) -> None:
+async def find_dangerous_domains(**kwargs) -> None:
     timeout = ClientTimeout(total=1800)
-    conn = aiohttp.TCPConnector(limit=10000)
-    tasks = []
+    conn = aiohttp.TCPConnector(limit=1000)
     urls = domains_list
 
     async with ClientSession(timeout=timeout, connector=conn) as session:
@@ -161,15 +160,4 @@ async def gather(**kwargs) -> None:
 
         for url in urls:
             domain = Domain(url=url, session=session, engine=async_engine)
-            tasks.append(domain.process_url(**kwargs))
-        await asyncio.gather(*tasks)
-
-
-@measure_timing
-def find_dangerous_domains() -> None:
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(gather())
-
-
-if __name__ == "__main__":
-    find_dangerous_domains()
+            await asyncio.create_task(domain.process_url(**kwargs))

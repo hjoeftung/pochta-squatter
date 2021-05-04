@@ -1,0 +1,50 @@
+version: "3.7"
+
+services:
+  web:
+    restart: always
+    build: ./web
+    ports:
+      - "8080:8080"
+    volumes:
+      - web-data:/usr/src/app/frontend
+    networks:
+      - backnet
+      - frontnet
+    env_file:
+      - .env
+    command: /usr/bin/env bash -c "./wait_for_it.sh postgres:5432 && /usr/local/bin/gunicorn app:app"
+
+  nginx:
+    restart: always
+    build: ./nginx
+    ports:
+      - "80:80"
+    volumes:
+      - web-data:/usr/src/app/frontend
+    networks:
+      - frontnet
+
+  postgres:
+    restart: always
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - backnet
+    env_file:
+      - .env
+
+volumes:
+  db-data:
+  web-data:
+
+networks:
+  backnet:
+  frontnet:

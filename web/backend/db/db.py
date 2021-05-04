@@ -1,10 +1,10 @@
 import logging
+import time
 
-import psycopg2
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
-from pochta_squatter.db.model import (
-    async_engine, all_domains, dangerous_domains)
+from .model import async_engine, all_domains, dangerous_domains
 
 
 logger = logging.getLogger(__name__)
@@ -28,18 +28,18 @@ async def get_dangerous_domains():
 
 async def export_to_csv() -> None:
     try:
-        with open("squat_domains.csv", "w"):
+        with open(f"domains.csv", "w"):
             with async_engine.connect() as conn:
                 await conn.execute(
                     f"""
                        COPY (SELECT * FROM all_domains JOIN dangerous_domains
                        ON all_domains.url = dangerous_domains.url) 
-                            TO '/tmp/squat_domains.csv'
+                            TO '/usr/src/app/frontend/build/assets/csv'
                             WITH (FORMAT CSV, HEADER);
                        """
                 )
 
             logger.info("Data has been successfully exported to a CSV file")
 
-    except (Exception, psycopg2.Error) as error:
+    except (Exception, SQLAlchemyError) as error:
         logger.info("Error while connecting to PostgreSQL:", error)
