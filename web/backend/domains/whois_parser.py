@@ -37,13 +37,15 @@ async def save_whois_record(whois_record: dict):
     registrar_name = whois_record["registrar"] if whois_record["registrar"] else ""
     abuse_email = whois_record["emails"] if whois_record["emails"] else ""
 
-    upsert_stmt = text(
-        f"INSERT INTO dangerous_domains (url, owner_name, registrar_name, abuse_email) "
-        f"VALUES ('{url}', '{owner_name}', '{registrar_name}', '{abuse_email}') "
-        f"ON CONFLICT (url) DO UPDATE SET "
-        f"owner_name='{url}', registrar_name='{owner_name}', "
-        f"abuse_email='{abuse_email}';"
-    )
+    upsert_stmt = text(f"""
+        INSERT INTO dangerous_domains 
+            (url, owner_name, registrar_name, abuse_email)
+        VALUES 
+            ('{url}', '{owner_name}', '{registrar_name}', '{abuse_email}')
+        ON CONFLICT (url) DO UPDATE SET
+            owner_name='{owner_name}', registrar_name='{registrar_name}',
+            abuse_email='{abuse_email}';
+    """)
 
     async with async_engine.begin() as conn:
         await conn.execute(upsert_stmt)

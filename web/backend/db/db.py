@@ -18,7 +18,7 @@ async def get_dangerous_domains():
     ).select_from(
         all_domains.join(
             dangerous_domains, all_domains.c.url == dangerous_domains.c.url)
-    )
+    ).order_by(all_domains.c.url)
 
     async with async_engine.begin() as conn:
         result = await conn.execute(select_dangerous_domains)
@@ -27,14 +27,17 @@ async def get_dangerous_domains():
 
 
 async def export_to_csv() -> None:
+    path_to_csv_dir = "/usr/src/app/frontend/build/assets/csv/"
+    csv_name = "dangerous_domains.csv"
+
     try:
-        with open(f"domains.csv", "w"):
+        with open(f"{path_to_csv_dir + csv_name}", "w"):
             with async_engine.connect() as conn:
                 await conn.execute(
                     f"""
                        COPY (SELECT * FROM all_domains JOIN dangerous_domains
                        ON all_domains.url = dangerous_domains.url) 
-                            TO '/usr/src/app/frontend/build/assets/csv'
+                            TO '{path_to_csv_dir}'
                             WITH (FORMAT CSV, HEADER);
                        """
                 )

@@ -149,6 +149,7 @@ class Domain:
             await self.process_whois()
 
 
+@measure_timing
 async def find_dangerous_domains(**kwargs) -> None:
     timeout = ClientTimeout(total=1800)
     conn = aiohttp.TCPConnector(limit=1000)

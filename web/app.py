@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 routes = web.RouteTableDef()
 
 
-async def search_for_dangerous_domains(app):
+async def search_for_dangerous_domains(app: web.Application):
     app["find_dangerous_domains"] = asyncio.create_task(
         find_dangerous_domains()
     )
@@ -38,11 +38,11 @@ async def output_current_results(request: web.Request):
     elif output_format == "csv":
         await export_to_csv()
         return aiohttp.web_response.Response(
-            text="http://localhost/build/assets/csv/domains.csv"
+            text="http://localhost/assets/csv/dangerous_domains.csv"
         )
 
 
 app = web.Application()
 app.add_routes(routes)
-app.on_startup.append(search_for_dangerous_domains)
-app.on_cleanup.append(cleanup_background_tasks)
+# app.on_startup.append(search_for_dangerous_domains)
+# app.on_cleanup.append(cleanup_background_tasks)

@@ -1,5 +1,11 @@
 version: "3.7"
 
+x-static-content-volume:
+  &static-content-volume
+  type: bind
+  source: ./web/frontend
+  target: /usr/src/app/frontend
+
 services:
   web:
     restart: always
@@ -7,7 +13,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - web-data:/usr/src/app/frontend
+      - *static-content-volume
     networks:
       - backnet
       - frontnet
@@ -21,7 +27,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - web-data:/usr/src/app/frontend
+      - *static-content-volume
     networks:
       - frontnet
 
@@ -35,7 +41,7 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5435:5432"
     networks:
       - backnet
     env_file:

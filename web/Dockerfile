@@ -1,6 +1,7 @@
 FROM python:3.8-slim
 
-RUN python -m pip install --upgrade pip
+RUN python3.8 -m venv /usr/share/python3/app && \
+/usr/share/python3/app/bin/pip install -U pip
 
 WORKDIR /usr/src/app
 
