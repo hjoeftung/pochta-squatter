@@ -18,7 +18,7 @@ body {
 
 main {
    margin: 0;
-   padding: 71px 0 0;
+   padding: 71px 0 0 20px;
 }
 
 h1 {
@@ -32,12 +32,12 @@ h1 {
 }
 
 h2 {
-   padding: 15px 10px 10px 25px;
    font-size: 20px;
+   margin-bottom: 10px;
 }
 
 table {
-   padding: 0 10px 10px 20px;
+   margin-bottom: 20px;
 }
 
 th {
@@ -59,4 +59,15 @@ tr {
 
 td {
    padding: 10px;
+}
+
+.link {
+   display: flex;
+   align-items: center;
+   font-size: 16px;
+}
+
+.link img {
+   width: 30px;
+   margin-left: 10px;
 }
