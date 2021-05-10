@@ -42,8 +42,6 @@ def generate_single_domains_list(
 
 
 def generate_final_domains_list() -> list:
-    print("Generating domains list.\n")
-
     ru_domains = generate_single_domains_list(
         CONNECTORS, RU_PREFIXES, RU_MAIN_NAMES,
         RU_POSTFIX_NAMES, RU_DOMAIN_ZONES
@@ -57,3 +55,4 @@ def generate_final_domains_list() -> list:
 
 
 domains_list = generate_final_domains_list()
+print(len(domains_list))
