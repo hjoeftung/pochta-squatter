@@ -4,8 +4,8 @@ import logging
 import aiohttp.web_response
 from aiohttp import web
 
-from backend.db.db import get_dangerous_domains, export_to_csv
-from backend.domains.checker import find_dangerous_domains
+from backend.db.db_utils import get_dangerous_domains_list, export_to_csv
+from backend.domains.domains_checker import find_dangerous_domains
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)s:%(name)s: %(message)s",
@@ -17,32 +17,25 @@ logger = logging.getLogger(__name__)
 routes = web.RouteTableDef()
 
 
-async def search_for_dangerous_domains(app: web.Application):
-    app["find_dangerous_domains"] = asyncio.create_task(
-        find_dangerous_domains()
-    )
+async def set_up_background_tasks(app: web.Application):
+    app["find_dangerous_domains"] = await find_dangerous_domains()
+    app["export_domains_to_csv"] = await export_to_csv()
 
 
 async def cleanup_background_tasks(app):
     app["find_dangerous_domains"].cancel()
     await app["find_dangerous_domains"]
+    app["export_domains_to_csv"].cancel()
+    await app["export_domains_to_csv"]
 
 
 @routes.get("/api/dangerous_domains")
 async def output_current_results(request: web.Request):
-    found_dangerous_domains = await get_dangerous_domains()
-    output_format = request.rel_url.query.get("fmt", "")
-
-    if output_format == "json":
-        return aiohttp.web_response.json_response(found_dangerous_domains)
-    elif output_format == "csv":
-        await export_to_csv()
-        return aiohttp.web_response.Response(
-            text="http://localhost/assets/csv/dangerous_domains.csv"
-        )
+    found_dangerous_domains = await get_dangerous_domains_list()
+    return aiohttp.web_response.json_response(found_dangerous_domains)
 
 
 app = web.Application()
 app.add_routes(routes)
-# app.on_startup.append(search_for_dangerous_domains)
+# app.on_startup.append(set_up_background_tasks)
 # app.on_cleanup.append(cleanup_background_tasks)

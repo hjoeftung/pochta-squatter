@@ -1,10 +1,9 @@
 /venv/
 /.env
-/squat_domains.csv
-/squat_domains.xlsx
 /.idea
-/__pycache__
+*/__pycache__
 /.pytest_cache
 /.git
-/.log
+/web/.log
 web.egg-info/
+/web/frontend/assets/csv

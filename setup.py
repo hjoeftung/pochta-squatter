@@ -25,7 +25,7 @@ def load_requirements(file_name: str) -> list:
 setup(
     name=module_name,
     author="hjoefung",
-    version='1.0',
+    version='0.1',
     long_description=open("readme.md").read(),
     python_requires=">=3.8",
     packages=find_packages(),

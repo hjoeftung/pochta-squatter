@@ -19,7 +19,7 @@ services:
       - frontnet
     env_file:
       - .env
-    command: /usr/bin/env bash -c "./wait_for_it.sh postgres:5432 && /usr/local/bin/gunicorn app:app"
+    command: /usr/local/bin/gunicorn app:app
 
   nginx:
     restart: always
