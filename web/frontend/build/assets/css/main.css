@@ -8,7 +8,7 @@ header {
 }
 
 body {
-   padding: 0;
+   padding: 0 50px 10px 0;
    margin: 0;
    font-size: 15px;
    text-align: left;
@@ -18,26 +18,25 @@ body {
 
 main {
    margin: 0;
-   padding: 71px 0 0 20px;
+   padding: 90px 0 0 20px;
 }
 
 h1 {
    margin: 0;
    font-size: 40px;
    font-weight: bold;
-   text-align: left;
-   font-family: 'Segoe-UI', 'Lucida Sans Unicode', 'Geneva', 'Verdana', sans-serif;
-   padding: 15px 10px 10px 25px;
+   padding: 15px 10px 15px 25px;
    color: white;
 }
 
 h2 {
    font-size: 20px;
-   margin-bottom: 10px;
+   margin-bottom: 20px;
 }
 
 table {
-   margin-bottom: 20px;
+   margin-bottom: 30px;
+   width: 100%;
 }
 
 th {
@@ -45,7 +44,7 @@ th {
    background: #6c757d;
    font-size: 15px;
    font-weight: bolder;
-   text-align: left;
+   text-align: center;
    font-family: 'Segoe-UI', 'Lucida Sans Unicode', 'Geneva', 'Verdana', sans-serif;
    color: #ffffff;
 }
@@ -64,10 +63,16 @@ td {
 .link {
    display: flex;
    align-items: center;
+   text-align: right;
    font-size: 16px;
+   width: 100%;
 }
 
 .link img {
    width: 30px;
    margin-left: 10px;
+}
+
+#last-updated {
+   margin-left: auto;
 }
