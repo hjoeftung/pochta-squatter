@@ -20,9 +20,21 @@
                     <th>Регистратор</th>
                     <th>Почта регистратора</th>
                     <th>Владелец</th>
+                    <th>Пометить как неопасный</th>
                 </tr>
             </tbody>
         </table>
+
+        <div id="confirmation-modal" class="modal">
+            <div class="modal__content">
+                <p>Вы хотите отметить домен как неопасный?</p>
+            </div>
+            <div class="modal__actions">
+                <button class="btn btn--success">Да</button>
+                <button class="btn btn--passive">Нет</button>
+            </div>
+        </div>
+
         <div>
             <p class="link">
                 Скачать в формате CSV:
