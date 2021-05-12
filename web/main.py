@@ -5,7 +5,7 @@ import logging
 import aiohttp.web_response
 from aiohttp import web
 
-from backend.db.db_utils import get_dangerous_domains_list, whitelist_url
+from backend.db.db_utils import get_dangerous_domains_list, whitelist_url, get_url_by_id
 from backend.domains.domains_checker import find_dangerous_domains
 
 logging.basicConfig(
@@ -35,18 +35,27 @@ async def cleanup_background_tasks(app):
     await app["run_background_search"]
 
 
-@routes.get("/api/dangerous_domains")
+@routes.get("/api/dangerous-urls")
 async def output_current_results(request: web.Request):
-    logger.debug("Output current results called")
     found_dangerous_domains = await get_dangerous_domains_list()
     return aiohttp.web_response.json_response(found_dangerous_domains)
 
 
-@routes.post("/api/non-dangerous")
-async def whitelist_url(request: web.Request):
-    url_to_whitelist = request.rel_url.query.get("whitelist")
-    await whitelist_url(url_to_whitelist)
-    logger.info(f"Url {url_to_whitelist} has been whitelisted")
+@routes.patch("/api/dangerous-urls/{url_id}")
+async def do_whitelist_url(request: web.Request):
+    url_id = request.match_info.get("url_id", "")
+    logger.debug(f"url_id = {url_id}")
+    url_to_whitelist = await get_url_by_id(url_id)
+    if url_to_whitelist:
+        await whitelist_url(url_to_whitelist)
+        logger.info(f"Url {url_to_whitelist} has been whitelisted")
+        return aiohttp.web_response.Response(
+            status=200, text=f"{url_to_whitelist}"
+        )
+    else:
+        return aiohttp.web_response.Response(
+            status=404, text=f"Url with the {url_id} id has not been found"
+        )
 
 
 app = web.Application()

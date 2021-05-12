@@ -1,8 +1,10 @@
 import os
+import uuid
 
 from dotenv import load_dotenv, find_dotenv
 from sqlalchemy import (MetaData, Table, Column, String,
                         Boolean, Integer, ForeignKey, DateTime)
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import create_async_engine
 
 
@@ -31,17 +33,19 @@ metadata = MetaData(naming_convention=convention)
 
 all_domains = Table(
     "all_domains", metadata,
-    Column("domain_id", Integer, primary_key=True, autoincrement=True),
+    Column("domain_id", UUID(as_uuid=True), primary_key=True,
+           default=uuid.uuid4),
     Column("url", String(150), unique=True, index=True),
     Column("is_alive", Boolean),
     Column("is_dangerous", Boolean),
+    Column("whitelisted", Boolean),
     Column("last_updated", DateTime)
 )
 
 dangerous_domains = Table(
     "dangerous_domains", metadata,
-    Column("domain_id", Integer, ForeignKey("all_domains.domain_id"),
-           primary_key=True),
+    Column("domain_id", UUID(as_uuid=True),
+           ForeignKey("all_domains.domain_id"), primary_key=True),
     Column("owner_name", String(150)),
     Column("registrar_id", ForeignKey("registrars.registrar_id")),
     Column("last_updated", DateTime)

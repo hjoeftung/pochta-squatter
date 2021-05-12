@@ -3,18 +3,23 @@
 import datetime
 import logging
 import re
-import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import sqlalchemy.sql
 import whois_alt
 
-from sqlalchemy import text, select, insert
+from sqlalchemy import select, insert
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.postgresql import insert
 
-from ..db.model import async_engine, all_domains, registrars
+from ..db.model import async_engine, all_domains, dangerous_domains, registrars
 
 logger = logging.getLogger(__name__)
+
+# Executor is needed to run blocking logging operations in a separate thread
+executor = ThreadPoolExecutor(max_workers=1)
+
 REG_RU_NAMES = ["registrar of domain names reg.ru llc",
                 "registrar of domain names reg.ru, llc",
                 "regru-ru"]
@@ -30,7 +35,9 @@ def prepare_url(url: str):
         main_url_part = url_match.group(1)
         return main_url_part
     except AttributeError:
-        logger.error(f"Regexp did not find a match for url: {url}")
+        executor.submit(
+            logger.error, f"Regexp did not find a match for url: {url}"
+        )
         return url
 
 
@@ -59,8 +66,10 @@ def get_whois_record(url: str) -> dict:
                 "registrar_name": registrar_name, "abuse_emails": abuse_emails}
 
     except whois_alt.shared.WhoisException as e:
-        logger.info(f"Have not found whois record for {prepared_url}. "
-                    f"Error message: {e}")
+        executor.submit(
+            logger.info,
+            f"Have not found whois record for {prepared_url}. "
+            f"Error message: {e}")
         return {"domain_name": url, "owner_name": "", "registrar_name": "",
                 "abuse_emails": ""}
 
@@ -74,10 +83,13 @@ async def find_domain_id(domain_name: str) -> Optional[int]:
     try:
         async with async_engine.begin() as conn:
             result = await conn.execute(select_stmt)
-            domain_id = result.fetchone()[0]
+            domain_id = result.fetchone()
+            result.close()
+            if domain_id:
+                domain_id = domain_id[0]
             return domain_id
     except Exception as e:
-        logger.error(f"Unexpected error occurred: {e}")
+        executor.submit(logger.error, f"Unexpected error occurred: {e}")
         return sqlalchemy.sql.null()
 
 
@@ -88,11 +100,13 @@ async def find_registrar_id(registrar_name: str) -> Optional[int]:
     try:
         async with async_engine.begin() as conn:
             result = await conn.execute(select_stmt)
-            registrar_id = result.fetchone()[0]
+            registrar_id = result.fetchone()
+            result.close()
+            if registrar_id:
+                registrar_id = registrar_id[0]
             return registrar_id
     except Exception as e:
         logger.error(f"Unexpected error occurred: {e}")
-        return None
 
 
 async def save_registrar_info(registrar_name: str, abuse_emails: str):
@@ -111,18 +125,19 @@ async def save_registrar_info(registrar_name: str, abuse_emails: str):
 async def save_domain_info(domain_id: int, owner_name: str,
                            registrar_id: Optional[int]):
     now = datetime.datetime.utcnow()
-    upsert_stmt = text(f"""
-            INSERT INTO dangerous_domains 
-                (domain_id, owner_name, registrar_id, last_updated)
-            VALUES 
-                ({domain_id}, '{owner_name}', {registrar_id}, '{now}')
-            ON CONFLICT (domain_id) DO UPDATE SET
-                domain_id={domain_id}, owner_name='{owner_name}', 
-                registrar_id={registrar_id}, last_updated='{now}';
-        """)
+    insert_stmt = (
+        insert(dangerous_domains).
+        values(domain_id=domain_id, owner_name=owner_name,
+               registrar_id=registrar_id, last_updated=now)
+    )
+    update_stmt = insert_stmt.on_conflict_do_update(
+        constraint="pk__dangerous_domains",
+        set_=dict(owner_name=owner_name, registrar_id=registrar_id,
+                  last_updated=now)
+    )
 
     async with async_engine.begin() as conn:
-        await conn.execute(upsert_stmt)
+        await conn.execute(update_stmt)
 
 
 async def save_whois_record(whois_record: dict):
