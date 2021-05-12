@@ -19,7 +19,7 @@ services:
       - frontnet
     env_file:
       - .env
-    command: /usr/local/bin/gunicorn app:app
+    command: /usr/local/bin/gunicorn main:app
 
   nginx:
     restart: always
